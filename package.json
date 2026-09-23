@@ -1,6 +1,6 @@
 {
   "name": "snpm", "version": "0.0.1", "description": "Safe NPM: zero-trust package manager on Bun", "type": "module", "private": true,
-  "bin": { "snpm": "./src/index.ts", "snpx": "./src/index.ts" }, "engines": { "bun": ">=1.1.0" },
+  "bin": { "snpm": "./src/index.ts", "snpx": "./src/snpx.ts" }, "engines": { "bun": ">=1.1.0" },
   "scripts": { "start": "bun run src/index.ts", "typecheck": "tsc --noEmit", "test": "bun test" },
   "devDependencies": { "@types/bun": "^1.1.0", "typescript": "^5.5.0" }
 }
