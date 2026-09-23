@@ -1,22 +1,4 @@
 {
-  "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "lib": ["ESNext"],
-    "types": ["bun"],
-    "strict": true,
-    "noImplicitAny": true,
-    "exactOptionalPropertyTypes": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noFallthroughCasesInSwitch": true,
-    "useUnknownInCatchVariables": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "skipLibCheck": true
-  },
+  "compilerOptions": { "target": "ESNext", "module": "ESNext", "moduleResolution": "bundler", "lib": ["ESNext"], "types": ["bun"], "strict": true, "noImplicitAny": true, "exactOptionalPropertyTypes": true, "noUncheckedIndexedAccess": true, "noImplicitOverride": true, "noFallthroughCasesInSwitch": true, "useUnknownInCatchVariables": true, "verbatimModuleSyntax": true, "isolatedModules": true, "allowImportingTsExtensions": true, "noEmit": true, "skipLibCheck": true },
   "include": ["src", "tests"]
 }
