@@ -20,7 +20,7 @@ export function quarantineSelector(options: QuarantineOptions): VersionSelector 
       for (const version of ctx.candidates) {
         const publishedAt = ctx.packument.time.get(version);
         const ageMs = publishedAt === undefined ? undefined : options.nowMs - publishedAt;
-        if (publishedAt !== undefined && publishedAt <= options.nowMs && ageMs >= minAgeMs) {
+        if (ageMs !== undefined && publishedAt !== undefined && publishedAt <= options.nowMs && ageMs >= minAgeMs) {
           return {
             version,
             rejected: blocked.map((v) => ({ version: v, reason: `blocked by mandatory ${minAgeMs / 3_600_000}h quarantine` })),
