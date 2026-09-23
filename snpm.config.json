@@ -1,0 +1,18 @@
+{
+  "registry": "https://registry.npmjs.org",
+  "quarantine": { "minAgeHours": 12, "allowFresh": [] },
+  "scanner": {
+    "mode": "auto",
+    "clamdSockets": ["/var/run/clamav/clamd.ctl", "/run/clamav/clamd.ctl", "/run/clamd.scan/clamd.sock"],
+    "chunkBytes": 65536,
+    "scanTimeoutMs": 30000
+  },
+  "scripts": { "ignore": true, "allow": [] },
+  "limits": {
+    "metaConcurrency": 16,
+    "tarballConcurrency": 8,
+    "scanConcurrency": 4,
+    "inFlightBytes": 268435456,
+    "maxTarballBytes": 52428800
+  }
+}

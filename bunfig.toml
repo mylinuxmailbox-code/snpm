@@ -1,0 +1,9 @@
+# Hermetic: keep Bun's own cache inside the repo
+[install]
+cache = ".snpm/bun-cache"
+
+[install.lockfile]
+save = true
+
+[test]
+root = "./tests"
