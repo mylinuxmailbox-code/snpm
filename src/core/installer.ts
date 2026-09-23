@@ -93,13 +93,24 @@ async function writeNodeTree(stage: string, graph: ResolvedGraph, files: Readonl
     const target = packageDirs.get(key); if (target === undefined) continue; const link = resolveInside(rootModules, alias); await mkdir(dirname(link), { recursive: true }); const rel = relative(dirname(link), target) || '.';
     try { await symlink(rel, link, process.platform === 'win32' ? 'junction' : 'dir'); } catch { await cp(target, link, { recursive: true, force: true }); }
     const node = graph.nodes.get(key); if (node === undefined) continue;
-    for (const [command, relativeBin] of node.bin) {
+    for (const [command, relativeBin] of packageBins(files.get(key), node.name)) {
       if (emittedBins.has(command)) continue; const binSource = resolveInside(target, relativeBin); const binLink = resolveInside(binDir, command); await mkdir(dirname(binLink), { recursive: true });
       if (process.platform === 'win32') { const cmdFile = `${binLink}.cmd`; await Bun.write(cmdFile, `@echo off\r\n"${process.execPath.replaceAll('/', '\\\\')}" "${binSource.replaceAll('/', '\\\\')}" %*\r\n`); }
       else { const binRel = relative(binDir, binSource); try { await symlink(binRel, binLink, 'file'); } catch { await cp(binSource, binLink, { force: true }); } await chmod(binLink, 0o755); }
       emittedBins.add(command);
     }
   }
+}
+function packageBins(files: readonly { readonly path: string; readonly data: Uint8Array }[] | undefined, packageName: string): ReadonlyArray<readonly [string, string]> {
+  const pkg = files?.find((file) => file.path === 'package.json'); if (pkg === undefined) return [];
+  let raw: unknown; try { raw = JSON.parse(new TextDecoder().decode(pkg.data)); } catch { return []; }
+  if (typeof raw !== 'object' || raw === null || !('bin' in raw)) return [];
+  const bin = Reflect.get(raw, 'bin');
+  if (typeof bin === 'string') { const command = packageName.split('/').pop() ?? packageName; return /^[A-Za-z0-9._-]+$/.test(command) ? [[command, bin]] : []; }
+  if (typeof bin !== 'object' || bin === null || Array.isArray(bin)) return [];
+  const result: Array<readonly [string, string]> = [];
+  for (const [command, path] of Object.entries(bin)) if (typeof path === 'string' && /^[A-Za-z0-9._-]+$/.test(command)) result.push([command, path]);
+  return result;
 }
 async function commitTree(stage: string, nodeModules: string, tx: string): Promise<void> {
   const stagedModules = join(stage, 'node_modules'); const backup = `${nodeModules}.snpm-backup-${tx}`; let backedUp = false; let installed = false;
