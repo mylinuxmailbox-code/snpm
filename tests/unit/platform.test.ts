@@ -1,17 +1,19 @@
 import { describe, expect, test } from 'bun:test';
-import { defaultClamdEndpoints, runtimeSignals } from '../../src/utils/platform.ts';
+import { defaultClamdSockets, parseConfig } from '../../src/core/config.ts';
 
-describe('cross-platform runtime policy', () => {
-  test('Linux and macOS use configurable Unix socket candidates', () => {
-    expect(defaultClamdEndpoints('linux').length).toBeGreaterThan(0);
-    expect(defaultClamdEndpoints('darwin').length).toBeGreaterThan(0);
+describe('platform configuration', () => {
+  test('Linux/macOS have daemon defaults; Windows does not assume Unix sockets', () => {
+    expect(defaultClamdSockets('linux').length).toBeGreaterThan(0);
+    expect(defaultClamdSockets('darwin').length).toBeGreaterThan(0);
+    expect(defaultClamdSockets('win32')).toEqual([]);
   });
-  test('Windows avoids Unix-only defaults and uses configured endpoint support', () => {
-    expect(defaultClamdEndpoints('win32')).toEqual([]);
-    expect(runtimeSignals('win32')).toEqual({ interrupt: 'SIGINT' });
+  test('configured Windows named pipe and TCP endpoints are accepted', () => {
+    const pipe = parseConfig({ platform: 'win32', scanner: { clamdSockets: ['\\\\.\\pipe\\clamd'] } });
+    const tcp = parseConfig({ platform: 'win32', scanner: { clamdSockets: ['tcp://127.0.0.1:3310'] } });
+    expect(pipe.scanner.clamdSockets[0]).toBe('\\\\.\\pipe\\clamd'); expect(tcp.scanner.clamdSockets[0]).toBe('tcp://127.0.0.1:3310');
   });
-  test('POSIX gets SIGTERM cleanup while Windows stays portable', () => {
-    expect(runtimeSignals('linux').terminate).toBe('SIGTERM');
-    expect(runtimeSignals('darwin').terminate).toBe('SIGTERM');
+  test('12-hour quarantine cannot be disabled via config', () => { expect(() => parseConfig({ quarantine: { minAgeHours: 0 } })).toThrow(); });
+  test('platform is explicit for deterministic testing', () => {
+    for (const platform of ['linux', 'darwin', 'win32'] as const) expect(parseConfig({ platform }).platform).toBe(platform);
   });
 });
