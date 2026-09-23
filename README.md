@@ -1,18 +1,25 @@
 # snpm
 
-Safe NPM on Bun: 12h quarantine, integrity-first resolution, clamd/heuristic scanning, staged extraction, and install scripts off by default.
+Safe NPM on Bun. Phase 3 adds the secure install path: a mandatory 12-hour semver-range quarantine gate, SRI verification, ClamAV INSTREAM when configured, heuristic triage, restrictive staged archive extraction, project-local content cache, transaction-style `node_modules` swap, and basic `snpx`.
 
 ```sh
-bun install && bun run typecheck && bun test
-bun run src/index.ts resolve
+bun install
+bun run typecheck
+bun test
+bun run src/index.ts install
+bun run src/index.ts snpx <package>[@range] [args...]
 ```
 
-Phase 2 now enforces the 12-hour gate during version selection: it resolves the requested semver range normally, then walks backward only within that range. A fresh `2.1.0` can fall back to old `2.0.9` for `^2.0.0`; it cannot fall back to `2.0.9` for `^2.1.0`. No eligible version means `QuarantineViolationError`.
+Safety defaults: install lifecycle scripts are never executed; missing/future publication timestamps fail closed; tarballs are size-capped, integrity-checked, scanned before extraction, and path/link validated; all cache, staging, audit, quarantine artifacts, and ephemeral snpx installs stay under the project `.snpm` directory. Linux/macOS have configurable ClamAV socket candidates; Windows uses explicit named-pipe or TCP configuration. `strict` scanner mode fails closed; `auto` warns before heuristic fallback.
 
-Platform policy is explicit for Linux, macOS and Windows. Unix ClamAV paths are configurable, Windows requires a configured endpoint, and terminal/signal behavior avoids Unix-only assumptions.
+## Compatibility status
+
+This is **not yet a complete npm replacement**. Implemented: registry dependency resolution, semver, npm aliases, optional dependency/platform filtering, peer warnings, deterministic lock generation, secure install, disabled lifecycle scripts, package bin launchers, and basic `snpx <package> [args]`.
+
+Missing: frozen lockfile replay, automatic peer installation, npm workspaces, overrides, bundled dependencies, `.npmrc` auth compatibility, publish/pack/audit/owner/global commands, lifecycle execution in a real sandbox, full npm CLI options, and npx `--package`/multi-package syntax. Those require separate conformance phases. We are not claiming drop-in parity yet.
 
 - [x] Phase 1: architecture map and hermetic scaffold
-- [x] Phase 2: bounded transport, packument parser, registry cache, resolver, lockfile, mandatory quarantine selector, platform matrix
-- [ ] Phase 3: integrity verification, clamd INSTREAM, heuristic scanner, staged untar, linker
-
-`snpm install` remains disabled until Phase 3 lands. Resolving without scanning is okay; installing without it is not.
+- [x] Phase 2: bounded transport, full packument parser/cache, recursive resolver, lockfile, mandatory age selector
+- [x] Phase 3 initial: SRI, ClamAV/heuristics, safe staged install, audit chain, basic snpx
+- [ ] npm compatibility/conformance work
+- [ ] Add cross-platform GitHub Actions workflow (the connected credential cannot write workflow files)
