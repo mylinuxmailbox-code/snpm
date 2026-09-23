@@ -1,0 +1,122 @@
+import { join } from 'node:path';
+import { MalformedMetadataError } from '../utils/errors.ts';
+
+export interface SnpmConfig {
+  readonly registry: string;
+  readonly quarantine: { readonly minAgeHours: number; readonly allowFresh: readonly string[] };
+  readonly scanner: {
+    readonly mode: 'strict' | 'auto' | 'heuristic-only';
+    readonly clamdSockets: readonly string[];
+    readonly chunkBytes: number;
+    readonly scanTimeoutMs: number;
+  };
+  readonly scripts: { readonly ignore: boolean; readonly allow: readonly string[] };
+  readonly limits: {
+    readonly metaConcurrency: number;
+    readonly tarballConcurrency: number;
+    readonly scanConcurrency: number;
+    readonly inFlightBytes: number;
+    readonly maxTarballBytes: number;
+  };
+}
+
+export const DEFAULT_CONFIG: SnpmConfig = {
+  registry: 'https://registry.npmjs.org',
+  quarantine: { minAgeHours: 12, allowFresh: [] },
+  scanner: {
+    mode: 'auto',
+    clamdSockets: ['/var/run/clamav/clamd.ctl', '/run/clamav/clamd.ctl', '/run/clamd.scan/clamd.sock'],
+    chunkBytes: 65_536,
+    scanTimeoutMs: 30_000,
+  },
+  scripts: { ignore: true, allow: [] },
+  limits: {
+    metaConcurrency: 16,
+    tarballConcurrency: 8,
+    scanConcurrency: 4,
+    inFlightBytes: 256 * 1024 * 1024,
+    maxTarballBytes: 50 * 1024 * 1024,
+  },
+};
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+const bad = (field: string, why: string): never => {
+  throw new MalformedMetadataError('snpm.config.json', `${field}: ${why}`);
+};
+
+function num(obj: Record<string, unknown>, key: string, dflt: number, field: string, min = 1): number {
+  const v = obj[key];
+  if (v === undefined) return dflt;
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < min) return bad(field, `must be a number >= ${min}`);
+  return v;
+}
+
+function strs(obj: Record<string, unknown>, key: string, dflt: readonly string[], field: string): readonly string[] {
+  const v = obj[key];
+  if (v === undefined) return dflt;
+  if (!Array.isArray(v) || !v.every((x): x is string => typeof x === 'string')) return bad(field, 'must be string[]');
+  return v;
+}
+
+const section = (json: Record<string, unknown>, key: string): Record<string, unknown> => {
+  const v = json[key];
+  if (v === undefined) return {};
+  return isRecord(v) ? v : bad(key, 'must be an object');
+};
+
+export function parseConfig(json: unknown): SnpmConfig {
+  if (!isRecord(json)) return bad('<root>', 'must be an object');
+  const d = DEFAULT_CONFIG;
+  const q = section(json, 'quarantine');
+  const s = section(json, 'scanner');
+  const sc = section(json, 'scripts');
+  const l = section(json, 'limits');
+
+  const registry = json['registry'] ?? d.registry;
+  if (typeof registry !== 'string') return bad('registry', 'must be a string');
+  const u = new URL(registry);
+  if (u.protocol !== 'https:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') {
+    return bad('registry', 'must be https (plain http only allowed for localhost)');
+  }
+
+  const mode = s['mode'] ?? d.scanner.mode;
+  if (mode !== 'strict' && mode !== 'auto' && mode !== 'heuristic-only') return bad('scanner.mode', 'strict|auto|heuristic-only');
+  const ignore = sc['ignore'] ?? d.scripts.ignore;
+  if (typeof ignore !== 'boolean') return bad('scripts.ignore', 'must be boolean');
+
+  return {
+    registry,
+    quarantine: {
+      minAgeHours: num(q, 'minAgeHours', d.quarantine.minAgeHours, 'quarantine.minAgeHours', 0),
+      allowFresh: strs(q, 'allowFresh', d.quarantine.allowFresh, 'quarantine.allowFresh'),
+    },
+    scanner: {
+      mode,
+      clamdSockets: strs(s, 'clamdSockets', d.scanner.clamdSockets, 'scanner.clamdSockets'),
+      chunkBytes: num(s, 'chunkBytes', d.scanner.chunkBytes, 'scanner.chunkBytes'),
+      scanTimeoutMs: num(s, 'scanTimeoutMs', d.scanner.scanTimeoutMs, 'scanner.scanTimeoutMs'),
+    },
+    scripts: { ignore, allow: strs(sc, 'allow', d.scripts.allow, 'scripts.allow') },
+    limits: {
+      metaConcurrency: num(l, 'metaConcurrency', d.limits.metaConcurrency, 'limits.metaConcurrency'),
+      tarballConcurrency: num(l, 'tarballConcurrency', d.limits.tarballConcurrency, 'limits.tarballConcurrency'),
+      scanConcurrency: num(l, 'scanConcurrency', d.limits.scanConcurrency, 'limits.scanConcurrency'),
+      inFlightBytes: num(l, 'inFlightBytes', d.limits.inFlightBytes, 'limits.inFlightBytes'),
+      maxTarballBytes: num(l, 'maxTarballBytes', d.limits.maxTarballBytes, 'limits.maxTarballBytes'),
+    },
+  };
+}
+
+export async function loadConfig(root: string): Promise<SnpmConfig> {
+  const f = Bun.file(join(root, 'snpm.config.json'));
+  if (!(await f.exists())) return DEFAULT_CONFIG;
+  let json: unknown;
+  try {
+    json = await f.json();
+  } catch {
+    return bad('<root>', 'invalid JSON');
+  }
+  return parseConfig(json);
+}

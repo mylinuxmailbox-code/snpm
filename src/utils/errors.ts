@@ -7,6 +7,8 @@ export abstract class SnpmError extends Error {
   }
 }
 
+// ---- network / registry (exit 5, 9) ---------------------------------------
+
 export class RegistryTimeoutError extends SnpmError {
   override readonly code = 'E_REGISTRY_TIMEOUT';
   override readonly exitCode = 5;
@@ -20,6 +22,32 @@ export class NetworkUnavailableError extends SnpmError {
   override readonly exitCode = 5;
 }
 
+export class RegistryHttpError extends SnpmError {
+  override readonly code = 'E_REGISTRY_HTTP';
+  override readonly exitCode = 5;
+  constructor(readonly url: string, readonly status: number) {
+    super(`Registry responded ${status}: ${url}`);
+  }
+}
+
+export class ResponseTooLargeError extends SnpmError {
+  override readonly code = 'E_RESPONSE_TOO_LARGE';
+  override readonly exitCode = 8;
+  constructor(readonly url: string, readonly bytes: number, readonly max: number) {
+    super(`Response from ${url} exceeded ${max} bytes (saw ${bytes})`);
+  }
+}
+
+export class PackageNotFoundError extends SnpmError {
+  override readonly code = 'E_NOT_FOUND';
+  override readonly exitCode = 9;
+  constructor(readonly pkg: string) {
+    super(`Package not found in registry: ${pkg}`);
+  }
+}
+
+// ---- metadata / resolution (exit 2, 6, 9, 10) -----------------------------
+
 export class MalformedMetadataError extends SnpmError {
   override readonly code = 'E_MALFORMED_METADATA';
   override readonly exitCode = 6;
@@ -27,6 +55,40 @@ export class MalformedMetadataError extends SnpmError {
     super(`Malformed registry metadata for ${pkg}: ${reason}`);
   }
 }
+
+export class InvalidPackageNameError extends SnpmError {
+  override readonly code = 'E_INVALID_NAME';
+  override readonly exitCode = 2;
+  constructor(readonly pkg: string) {
+    super(`Invalid package name: ${JSON.stringify(pkg)}`);
+  }
+}
+
+export class UnsupportedSpecError extends SnpmError {
+  override readonly code = 'E_UNSUPPORTED_SPEC';
+  override readonly exitCode = 10;
+  constructor(readonly pkg: string, readonly spec: string) {
+    super(`${pkg}: spec ${JSON.stringify(spec)} is not a registry range (git/file/url/workspace specs are refused)`);
+  }
+}
+
+export class NoMatchingVersionError extends SnpmError {
+  override readonly code = 'E_NO_MATCH';
+  override readonly exitCode = 9;
+  constructor(readonly pkg: string, readonly range: string) {
+    super(`No version of ${pkg} satisfies ${JSON.stringify(range)}`);
+  }
+}
+
+export class DependencyGraphTooLargeError extends SnpmError {
+  override readonly code = 'E_GRAPH_TOO_LARGE';
+  override readonly exitCode = 8;
+  constructor(readonly max: number) {
+    super(`Dependency graph exceeded ${max} nodes (possible dependency bomb)`);
+  }
+}
+
+// ---- security (exit 3, 4, 7) ----------------------------------------------
 
 export class QuarantineViolationError extends SnpmError {
   override readonly code = 'E_QUARANTINE';
