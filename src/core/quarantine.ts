@@ -27,7 +27,13 @@ export function quarantineSelector(options: QuarantineOptions): VersionSelector 
           };
         }
         blocked.push(version);
-        options.onBlocked?.({ ctx: undefined as never, name: ctx.spec.name, range: ctx.spec.range, version, ...(ageMs === undefined ? {} : { ageMs }), minAgeMs });
+        options.onBlocked?.({
+          name: ctx.spec.name,
+          range: ctx.spec.range,
+          version,
+          ...(ageMs === undefined ? {} : { ageMs }),
+          minAgeMs,
+        });
       }
       throw new QuarantineViolationError(ctx.spec.name, ctx.spec.range, blocked, minAgeMs);
     },
